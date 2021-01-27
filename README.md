@@ -1,6 +1,8 @@
 # Cyber-security-documentation
 My Cyber Security Documentation and CTF Write Ups.
 
+I write documentation on topics in the cyber security field which interest me. The topics I write about are topics that I have studied in order to gain a better understanding.
+
 Projects im working on:
 
 WireShark
