@@ -22,3 +22,10 @@ Most Common Attack Vectors
 Incident Response
 
 Hack This Site Realistic Mission 03
+
+Virtual Machines (Virtual box & Gnome-boxes)
+
+NetCat
+
+Security Auditing and Logging 
+
