@@ -41,8 +41,11 @@
    - [Parameter Fuzzing](#parameter-fuzzing)
 
 4. [Automated Vulnerability Scanning](#automated-vulnerability-scanning)
+   - [Nuclei Vulnerability Scanning](#nuclei-vulnerability-scanning)
+      - [Nuclei Fuzzing](#nuclei-fuzzing)
+   - [Nmap Scripting Engine Scanning](#nmap-scripting-engine-scanning)
 
-5. [API Analysis](#api-analysis)
+6. [API Analysis](#api-analysis)
    - [Broken Object Level Authorisation – BOLA](#broken-object-level-authorisation--bola)
    - [Broken Authentication](#broken-authentication)
    - [Broken Object Property Level Authorization](#broken-object-property-level-authorization)
@@ -91,6 +94,10 @@
 ## Parameter Fuzzing
 
 # Automated Vulnerability Scanning
+## Automated Vulnerability Scanning
+## Nuclei Vulnerability Scanning
+### Nuclei Fuzzing
+## Nmap Scripting Engine Scanning
 
 # API Analysis
 ## Broken Object Level Authorisation – BOLA
