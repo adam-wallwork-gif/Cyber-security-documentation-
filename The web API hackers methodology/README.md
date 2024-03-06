@@ -1,6 +1,6 @@
 <h1 align="center">The web API hackers methodology</h1>
-## By Adam Wallwork
-## https://www.linkedin.com/in/adam-wallwork-aab4861a6
+<h2 align="center">By Adam Wallwork</h2>
+<p align="center"><a href="https://www.linkedin.com/in/adam-wallwork-aab4861a6">LinkedIn Profile</a></p>
 
 # Information Gathering
 ## API Type Identification
