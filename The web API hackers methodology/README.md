@@ -4,7 +4,7 @@
 
 <h3 align="center">Summary</h3>
 
-**The web API hackers methodology** similar to [Jason Haddix's Bug Bounty Hunter Methodology](https://jasonhaddix.gumroad.com/l/lycucs) focuses on the process of discovering, testing and exploiting vulnerabilities specific to REST and GraphQL web APIs for penetration testers, developers and bug bounty hunters to use in their engagements.
+**The web API hackers methodology** similar to [Jason Haddix's Bug Bounty Hunter Methodology](https://jasonhaddix.gumroad.com/l/lycucs) focuses on the process of discovering, testing and exploiting vulnerabilities specific to REST and GraphQL web APIs for penetration testers, developers and bug bounty hunters.
 
 ## Table of Contents
 
